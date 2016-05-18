@@ -13,7 +13,7 @@ MEMORY_OPTS="-Xmx4G -Xms4G"
 JAVA_OPTIONS=""
 INVOCATION="${JAVA_HOME}/bin/java ${MEMORY_OPTS} ${JAVA_OPTIONS} -jar $SERVICE nogui"
 BACKUPARCHIVEPATH=$BACKUPPATH/archive
-BACKUPDIR=$(date +%b_%Y)
+BACKUPDIR=$(date +%H%M_b%Y_%N)
 PORT=$(grep server-port $MCPATH/server.properties | cut -d '=' -f 2)
 if [ -z "$PORT" ]; then
 	PORT=25565
@@ -175,7 +175,7 @@ heph_thinoutbackup() {
 		archivesourcedir=$BACKUPPATH/$(date --date="$archivedate" +%b_%Y)
 		archivesource=$archivesourcedir/rdiff-backup-data/increments.$(date --date="$archivedate" +%Y-%m-%dT%H):0*.dir
 		archivesource=$(echo $archivesource)
-		archivedest=$BACKUPARCHIVEPATH/$(date --date="$archivedate" +%b_%Y)
+		archivedest=$BACKUPARCHIVEPATH/$(date --date="$archivedate" +%H%M_b%Y_%N)
 		
 		if [[ ! -f $archivesource ]]; then
 			echo "NOPE"
@@ -212,7 +212,6 @@ heph_dumpcrash() {
 	fi
 }
 
-#Start-Stop here
 case "$1" in
   start)
     if heph_start
