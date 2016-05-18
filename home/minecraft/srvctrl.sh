@@ -1,5 +1,5 @@
 #!/bin/bash
-# version 0.2.0 2015-05-18 (YYYY-MM-DD)
+# version 0.2.0 2015-05-18
 
 # VARS
 USERNAME="minecraft"
