@@ -1,5 +1,5 @@
 #!/bin/bash
-# version 0.0.2 2015-05-18 (YYYY-MM-DD)
+# version 0.1.1 2015-05-18 (YYYY-MM-DD)
 
 # VARS
 USERNAME="minecraft"
@@ -166,33 +166,31 @@ heph_backup() {
 }
 
 heph_thinoutbackup() {
-	if (($(date +%H) == 0)) && (($(date +%M) < 15)); then
-		archivedate=$(date --date="3 days ago")
+	archivedate=$(date --date="3 days ago")
+	
+	echo "THINBACKUP since $archivedate"
+	
+	archivedateunix=$(date --date="$archivedate" +%s)
+	archivesourcedir=$BACKUPPATH/$(date --date="$archivedate" +%b_%Y)
+	archivesource=$archivesourcedir/rdiff-backup-data/increments.$(date --date="$archivedate" +%Y-%m-%dT%H):0*.dir
+	archivesource=$(echo $archivesource)
+	archivedest=$BACKUPARCHIVEPATH/$(date --date="$archivedate" +%H%M_b%Y_%N)
+	
+	if [[ ! -f $archivesource ]]; then
+		echo "NOPE"
+	else
+		tempdir=$(mktemp -d)
 		
-		echo "THINBACKUP since $archivedate"
-		
-		archivedateunix=$(date --date="$archivedate" +%s)
-		archivesourcedir=$BACKUPPATH/$(date --date="$archivedate" +%b_%Y)
-		archivesource=$archivesourcedir/rdiff-backup-data/increments.$(date --date="$archivedate" +%Y-%m-%dT%H):0*.dir
-		archivesource=$(echo $archivesource)
-		archivedest=$BACKUPARCHIVEPATH/$(date --date="$archivedate" +%H%M_b%Y_%N)
-		
-		if [[ ! -f $archivesource ]]; then
-			echo "NOPE"
+		if [[ ! $tempdir =~ ^/tmp ]]; then
+			echo "INVALID DIR $tempdir"
 		else
-			tempdir=$(mktemp -d)
+			rdiff-backup $archivesource $tempdir
+			rdiff-backup --current-time $archivedateunix $tempdir $archivedest
+			rm -R "$tempdir"
 			
-			if [[ ! $tempdir =~ ^/tmp ]]; then
-				echo "INVALID DIR $tempdir"
-			else
-				rdiff-backup $archivesource $tempdir
-				rdiff-backup --current-time $archivedateunix $tempdir $archivedest
-				rm -R "$tempdir"
-				
-				rdiff-backup --remove-older-than 3D --force $archivesourcedir
-				
-				echo "DONE"
-			fi
+			rdiff-backup --remove-older-than 3D --force $archivesourcedir
+			
+			echo "DONE"
 		fi
 	fi
 }
