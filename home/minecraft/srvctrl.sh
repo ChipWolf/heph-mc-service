@@ -8,9 +8,9 @@ MCPATH="/home/$USERNAME/minecraft"
 BACKUPPATH="/home/$USERNAME/backup"
 CHECKSERVER="/home/$USERNAME/checksrv"
 CRASHLOG_DB_PATH='/home/$USERNAME/crashdb'
-JAVA_HOME="/usr/local/lib/jrockit"
+JAVA_HOME="/usr/bin/java"
 MEMORY_OPTS="-Xmx4G -Xms4G"
-JAVA_OPTIONS="-XX:FlightRecorderOptions=defaultrecording=true,disk=true,repository=/home/$USERNAME/jfr/,maxage=30m,settings=profile"
+JAVA_OPTIONS=""
 INVOCATION="${JAVA_HOME}/bin/java ${MEMORY_OPTS} ${JAVA_OPTIONS} -jar $SERVICE nogui"
 BACKUPARCHIVEPATH=$BACKUPPATH/archive
 BACKUPDIR=$(date +%b_%Y)
