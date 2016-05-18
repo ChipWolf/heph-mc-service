@@ -1,5 +1,5 @@
 #!/bin/bash
-# version 0.1.1 2015-05-18 (YYYY-MM-DD)
+# version 0.2.0 2015-05-18 (YYYY-MM-DD)
 
 # VARS
 USERNAME="minecraft"
@@ -15,12 +15,14 @@ INVOCATION="${JAVA_HOME}/bin/java ${MEMORY_OPTS} ${JAVA_OPTIONS} -jar $SERVICE n
 BACKUPARCHIVEPATH=$BACKUPPATH/archive
 BACKUPDIR=$(date +%H%M_b%Y_%N)
 PORT=$(grep server-port $MCPATH/server.properties | cut -d '=' -f 2)
-if [ -z "$PORT" ]; then
-	PORT=25565
-fi
+if [ -z "$PORT" ];then PORT=25565;fi
 # END VARS
 
 if [ $(whoami) != $USERNAME ];then su $USERNAME -l -c "$(readlink -f $0) $*";exit $?;fi
+heph_startmonitor() { if [ -z $CHECKSERVER ];then echo "MONITOR: ACTIVE";/usr/bin/daemon --name=minecraft_checkserver -- $JAVA_HOME/bin/java -cp $CHECKSERVER chksrv localhost $PORT;fi;}
+heph_stopmonitor() { if [ -z $CHECKSERVER ];then /usr/bin/daemon --name=minecraft_checkserver --stop;fi;}
+heph_dumpcrash() { if is_running;then cp $MCPATH/crash-reports/* $CRASHLOG_DB_PATH;mv $MCPATH/crash-reports/* $MCPATH/crash-reports.archive/;fi;}
+heph_exec() { if is_running;then screen -p 0 -S $(cat $MCPATH/screen.name) -X stuff "$@$(printf \\r)";else echo "NOCOMMAND: $SERVICE NORUN";fi;}
 
 is_running() {
 	if [ ! -e $MCPATH/java.pid ];then return 1;fi
@@ -54,13 +56,6 @@ heph_start() {
 	fi
 }
 
-heph_startmonitor() {
-	if [ -z $CHECKSERVER ]; then
-		echo "MONITOR: ACTIVE"
-		/usr/bin/daemon --name=minecraft_checkserver -- $JAVA_HOME/bin/java -cp $CHECKSERVER chksrv localhost $PORT
-	fi
-}
-
 heph_saveoff() {
 	if is_running; then
 		echo "SUSPENDSAVE: $SERVICE RUNNING"
@@ -88,28 +83,14 @@ heph_saveon() {
 
 heph_kill() {
 	pid=$(cat $MCPATH/java.pid)
-
 	echo "TERM PID:$pid"
-	kill $pid
-	
-	for (( i=0; i < 10; i++ )); do
-		is_running || break
-		sleep 1
-	done
-
-	if is_running; then
-		echo "FAILTERM: KILLING $SERVICE"
-		kill -SIGKILL $pid
-		echo "$SERVICE K.O."
-	else
-		echo "$SERVICE TERM"
-	fi
+	kill $pid;for (( i=0;i < 10;i++ ));do is_running || break;sleep 1;done
+	if is_running;then echo "FAILTERM: KILLING $SERVICE";kill -SIGKILL $pid;echo "$SERVICE K.O.";else echo "$SERVICE TERM";fi
 }
 
 heph_stop() {
 	if is_running; then
 		echo "STOPPING: $SERVICE RUNNING"
-		
 		heph_exec "say §k§9ch §cSelf-Destruct §cSequence §cStart §k§9ip"
 		heph_exec "say §a> §ashutdown §at-minus §a± §a300s"
 		sleep 240
@@ -129,93 +110,49 @@ heph_stop() {
 		heph_exec "say §a> §ashutdown §at-minus §a± §a2s"
 		heph_exec "stop"
 		heph_exec "say §a> §ashutdown §at-minus §a± §a1s"
-		
-		for (( i=0; i < 20; i++ )); do
-			is_running || break
-			sleep 1
-		done
+		for (( i=0;i < 20;i++ ));do is_running || break;sleep 1;done
 	else
 		echo "$SERVICE NORUN"
 	fi
 	
-	if is_running; then
-		echo "NOCLEAN: $SERVICE RUNNING"
-		heph_kill
-	else
-		echo "$SERVICE DOWN"
-	fi
-	
-	rm $MCPATH/java.pid
-	rm $MCPATH/screen.name
-}
-
-heph_stopmonitor() {
-	if [ -z $CHECKSERVER ]; then
-		/usr/bin/daemon --name=minecraft_checkserver --stop
-	fi
+	if is_running;then echo "NOCLEAN: $SERVICE RUNNING";heph_kill;else echo "$SERVICE DOWN";fi
+	rm $MCPATH/java.pid;rm $MCPATH/screen.name
 }
 
 heph_backup() {
 	echo "BACKUP COMMENCE"
-
 	[ -d "$BACKUPPATH/$BACKUPDIR" ] || mkdir -p "$BACKUPPATH/$BACKUPDIR"
-
 	rdiff-backup $MCPATH "$BACKUPPATH/$BACKUPDIR"
-	
 	echo "BACKUP COMPLETE"
 }
 
 heph_thinoutbackup() {
 	archivedate=$(date --date="3 days ago")
-	
 	echo "THINBACKUP since $archivedate"
-	
 	archivedateunix=$(date --date="$archivedate" +%s)
 	archivesourcedir=$BACKUPPATH/$(date --date="$archivedate" +%b_%Y)
 	archivesource=$archivesourcedir/rdiff-backup-data/increments.$(date --date="$archivedate" +%Y-%m-%dT%H):0*.dir
 	archivesource=$(echo $archivesource)
 	archivedest=$BACKUPARCHIVEPATH/$(date --date="$archivedate" +%H%M_b%Y_%N)
-	
 	if [[ ! -f $archivesource ]]; then
 		echo "NOPE"
 	else
 		tempdir=$(mktemp -d)
-		
 		if [[ ! $tempdir =~ ^/tmp ]]; then
 			echo "INVALID DIR $tempdir"
 		else
 			rdiff-backup $archivesource $tempdir
 			rdiff-backup --current-time $archivedateunix $tempdir $archivedest
 			rm -R "$tempdir"
-			
 			rdiff-backup --remove-older-than 3D --force $archivesourcedir
-			
 			echo "DONE"
 		fi
 	fi
 }
 
-heph_exec() {
-	if is_running; then
-		screen -p 0 -S $(cat $MCPATH/screen.name) -X stuff "$@$(printf \\r)"
-	else
-		echo "NOCOMMAND: $SERVICE NORUN"
-	fi
-}
-
-heph_dumpcrash() {
-	if is_running; then
-		cp $MCPATH/crash-reports/* $CRASHLOG_DB_PATH
-		mv $MCPATH/crash-reports/* $MCPATH/crash-reports.archive/
-	fi
-}
-
 case "$1" in
   start)
-    if heph_start
-    then
-      heph_startmonitor
-    fi
+    if heph_start;then heph_startmonitor;fi
     ;;
   stop)
     heph_stopmonitor
@@ -226,8 +163,7 @@ case "$1" in
     heph_stopmonitor
     heph_stop
     heph_dumpcrash
-    heph_start
-	heph_startmonitor
+    if heph_start;then heph_startmonitor;fi
     ;;
   backup)
     heph_saveoff
@@ -243,12 +179,7 @@ case "$1" in
     heph_dumpcrash
     ;;
   status)
-    if is_running
-    then
-      echo "$SERVICE RUNNING"
-    else
-      echo "$SERVICE NORUN"
-    fi
+    if is_running;then echo "$SERVICE RUNNING";else echo "$SERVICE NORUN";fi
     ;;
 
   *)
