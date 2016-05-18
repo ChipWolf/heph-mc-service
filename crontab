@@ -1,0 +1,2 @@
+0 0,6,12,18 * * * bash /home/minecraft/srvctrl.sh backup
+0 1,4,7,10,13,16,19,21 * * * bash /home/minecraft/srvctrl.sh restart
